@@ -1,0 +1,64 @@
+#!/bin/sh
+
+UID=`id -u nginx`
+GID=`id -g nginx`
+
+ENV_FILE=/tmp/.environ
+
+# Load the last environment variables
+if [ -f ${ENV_FILE} ]; then
+  while read line
+  do
+    key=`echo $line | cut -d= -f1`
+    val=`echo $line | cut -d= -f2-`
+    env | grep -E "^$key=." > /dev/null
+    if [ $? -ne 0 -a "$val" != "" ]; then
+      eval "export $key=$val"
+    fi
+  done < ${ENV_FILE}
+fi
+
+# Save the environment variables, and remove empty ones
+rm -f ${ENV_FILE}
+for key in DOKUWIKI_PORT \
+  DOKUWIKI_MEMORY_LIMIT \
+  DOKUWIKI_UPLOAD_MAX_SIZE
+do
+  val=`eval "echo \\$$key"`
+  if [ "$val" == "" ]; then
+    export -n "$key"
+  else
+    echo $key=$val>> ${ENV_FILE}
+  fi
+done
+
+# Default environment variables
+export DOKUWIKI_PORT=${DOKUWIKI_PORT:=80}
+export DOKUWIKI_MEMORY_LIMIT=${DOKUWIKI_MEMORY_LIMIT:=128M}
+export DOKUWIKI_UPLOAD_MAX_SIZE=${DOKUWIKI_UPLOAD_MAX_SIZE:=128M}
+export DOKUWIKI_NAME=${DOKUWIKI_NAME:=dokuwiki}
+export DOKUWIKI_BACKUP_FILE=${DOKUWIKI_BACKUP_FILE}
+
+# Set Dokuwiki configuration
+envsubst '$$DOKUWIKI_UPLOAD_MAX_SIZE $$DOKUWIKI_NAME' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+envsubst '$$DOKUWIKI_UPLOAD_MAX_SIZE $$DOKUWIKI_MEMORY_LIMIT' < /etc/php7/php-fpm.conf.template > /etc/php7/php-fpm.conf
+
+# Initialize DokuWiki
+mkdir -p /usr/share/nginx/html/instance/execute/
+ln -s /usr/share/nginx/html.dokuwiki/dokuwiki "/usr/share/nginx/html/instance/execute/${DOKUWIKI_NAME}"
+chmod 775 /usr/share/nginx/html.dokuwiki/dokuwiki
+chown -R $UID:$GID /usr/share/nginx/html.dokuwiki/dokuwiki /var/log
+
+# Install DokuWiki Plugins
+unzip -qo /usr/local/share/dokuwiki-plugin-backup-master.zip -d /dev/shm/
+mv /dev/shm/dokuwiki-plugin-backup-master /usr/share/nginx/html.dokuwiki/dokuwiki/lib/plugins/backup
+
+# Restore the backup file
+if [ "${DOKUWIKI_BACKUP_FILE}" != "" ]; then
+  dokuwiki_restore.sh "${DOKUWIKI_BACKUP_FILE}"
+  rm -f "${DOKUWIKI_BACKUP_FILE}"
+fi
+
+# Run
+#exec su-exec $UID:$GID /bin/s6-svscan /services
+/bin/s6-svscan /services
