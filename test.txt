@@ -1,3 +1,0 @@
-#!/bin/sh
-
-echo "{\"message\":\"update\",\"content\":\"$(base64 $1 | tr -d '\n')\",\"branch\":\"master\",\"sha\":$(curl -X GET https://api.github.com/repos/cx-jp/temp/contents/test.txt | jq .sha)}" 
