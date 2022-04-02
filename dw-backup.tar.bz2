@@ -1,8 +1,2 @@
-#!/bin/sh
-
-GIT_ACCESS_TOKEN=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
-GIT_OWNER=cx-jp
-GIT_REPOSITORY=temp
-BACKUP_FILENAME=dw-backup.tar.bz2
-
-echo "{\"message\":\"update\",\"content\":\"$(base64 $1 | tr -d '\n')\",\"branch\":\"master\",\"sha\":$(curl -X GET https://api.github.com/repos/${GIT_OWNER}/${GIT_REPOSITORY}/contents/dw-backup.tar.bz2 | jq .sha)}" | curl -i -X PUT -H 'Authorization: token ${GIT_ACCESS_TOKEN}' -d @- https://api.github.com/repos/${GIT_OWNER}/${GIT_REPOSITORY}/contents/dw-backup.tar.bz2
+[02-Apr-2022 14:39:20] NOTICE: fpm is running, pid 43
+[02-Apr-2022 14:39:20] NOTICE: ready to handle connections
